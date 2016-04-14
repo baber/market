@@ -6,7 +6,6 @@ import java.time.Instant
 
 import static org.hamcrest.MatcherAssert.assertThat
 import static org.hamcrest.core.IsCollectionContaining.hasItem
-import static org.hamcrest.core.IsCollectionContaining.hasItem
 import static org.hamcrest.core.IsEqual.equalTo
 import static org.hamcrest.core.IsNull.notNullValue
 
@@ -14,7 +13,7 @@ class MarketSpec extends spock.lang.Specification {
 
     def "should not be able to add a bid to the market if the quantity is not greater than zero"() {
         given:
-        Market market = new Market(new MarketState())
+        Market market = new Market()
         PlacementRequest bidRequest = new PlacementRequest("item1", "user1", 0, 5)
 
         when:
@@ -26,7 +25,7 @@ class MarketSpec extends spock.lang.Specification {
 
     def "should not be able to add an offer to the market if the quantity is not greater than zero"() {
         given:
-        Market market = new Market(new MarketState())
+        Market market = new Market()
         PlacementRequest offerRequest = new PlacementRequest("item1", "user1", 0, 5)
 
         when:
@@ -38,7 +37,7 @@ class MarketSpec extends spock.lang.Specification {
 
     def "should not be able to add a bid to the market if the price is less than zero"() {
         given:
-        Market market = new Market(new MarketState())
+        Market market = new Market()
         PlacementRequest bidRequest = new PlacementRequest("item1", "user1", 5, -1)
 
         when:
@@ -50,7 +49,7 @@ class MarketSpec extends spock.lang.Specification {
 
     def "should not be able to add an offer to the market if the price is less than zero"() {
         given:
-        Market market = new Market(new MarketState())
+        Market market = new Market()
         PlacementRequest offerRequest = new PlacementRequest("item1", "user1", 5, -1)
 
         when:
@@ -62,7 +61,7 @@ class MarketSpec extends spock.lang.Specification {
 
     def "should not be able to add a bid to the market if the user id is empty"() {
         given:
-        Market market = new Market(new MarketState())
+        Market market = new Market()
         PlacementRequest bidRequest = new PlacementRequest("item1", "", 5, 10)
 
         when:
@@ -74,7 +73,7 @@ class MarketSpec extends spock.lang.Specification {
 
     def "should not be able to add an offer to the market if the user id is empty"() {
         given:
-        Market market = new Market(new MarketState())
+        Market market = new Market()
         PlacementRequest offerRequest = new PlacementRequest("item1", "", 5, 10)
 
         when:
@@ -87,7 +86,7 @@ class MarketSpec extends spock.lang.Specification {
 
     def "should not be able to add a bid to the market if the item id is empty"() {
         given:
-        Market market = new Market(new MarketState())
+        Market market = new Market()
         PlacementRequest bidRequest = new PlacementRequest("", "user1", 5, 10)
 
         when:
@@ -99,7 +98,7 @@ class MarketSpec extends spock.lang.Specification {
 
     def "should not be able to add an offer to the market if the item id is empty"() {
         given:
-        Market market = new Market(new MarketState())
+        Market market = new Market()
         PlacementRequest offerRequest = new PlacementRequest("", "user1", 5, 10)
 
         when:
@@ -111,7 +110,7 @@ class MarketSpec extends spock.lang.Specification {
 
     def "should be able to add a valid bid to the market"() {
         given:
-        Market market = new Market(new MarketState())
+        Market market = new Market()
         PlacementRequest bidRequest = new PlacementRequest("item1", "user1", 5, 10)
 
         when:
@@ -120,12 +119,12 @@ class MarketSpec extends spock.lang.Specification {
         then:
         def bids = market.getBidsForUser(bidRequest.userId)
         assertThat(bids.size(), equalTo(1))
-        assertThat(bids[0].placementRequest, equalTo(bidRequest))
+        assertThat(bids[0].originalRequest, equalTo(bidRequest))
     }
 
     def "should be able to add a valid offer to the market"() {
         given:
-        Market market = new Market(new MarketState())
+        Market market = new Market()
         PlacementRequest offerRequest = new PlacementRequest("item1", "user1", 5, 10)
 
         when:
@@ -134,13 +133,13 @@ class MarketSpec extends spock.lang.Specification {
         then:
         def offers = market.getOffersForUser(offerRequest.userId)
         assertThat(offers.size(), equalTo(1))
-        assertThat(offers[0].placementRequest, equalTo(offerRequest))
+        assertThat(offers[0].originalRequest, equalTo(offerRequest))
     }
 
 
     def "a placed bid should have a placement time associated with it"() {
         given:
-        Market market = new Market(new MarketState())
+        Market market = new Market()
         PlacementRequest bidRequest = new PlacementRequest("item1", "user1", 5, 10)
 
         when:
@@ -157,7 +156,7 @@ class MarketSpec extends spock.lang.Specification {
 
     def "a placed offer should have a placement time associated with it"() {
         given:
-        Market market = new Market(new MarketState())
+        Market market = new Market()
         PlacementRequest offerRequest = new PlacementRequest("item1", "user1", 5, 10)
 
         when:
@@ -171,61 +170,11 @@ class MarketSpec extends spock.lang.Specification {
         assert(offer.placementTime.toEpochMilli() <= Instant.now().toEpochMilli())
     }
 
-    def "multiple bids should have a placement time that reflects the serial order in which they were added"() {
-        given:
-        Market market = new Market(new MarketState())
-        PlacementRequest bidRequest1 = new PlacementRequest("item1", "user1", 5, 10)
-        PlacementRequest bidRequest2 = new PlacementRequest("item1", "user1", 10, 10)
-        PlacementRequest bidRequest3 = new PlacementRequest("item1", "user1", 15, 10)
-
-        when:
-        market.placeBid(bidRequest1)
-        Thread.sleep(500)
-        market.placeBid(bidRequest2)
-        Thread.sleep(500)
-        market.placeBid(bidRequest3)
-
-        then:
-        def bids = market.getBidsForUser(bidRequest1.userId)
-        assertThat(bids.size(), equalTo(3))
-        def bid1 = bids.find { bidRequest1.equals(it.placementRequest) }
-        def bid2 = bids.find { bidRequest2.equals(it.placementRequest) }
-        def bid3 = bids.find { bidRequest3.equals(it.placementRequest) }
-
-        assert(bid1.placementTime.isBefore(bid2.placementTime))
-        assert(bid2.placementTime.isBefore(bid3.placementTime))
-    }
-
-
-    def "multiple offers should have a placement time that reflects the serial order in which they were added"() {
-        given:
-        Market market = new Market(new MarketState())
-        PlacementRequest offerRequest1 = new PlacementRequest("item1", "user1", 5, 10)
-        PlacementRequest offerRequest2 = new PlacementRequest("item1", "user1", 10, 10)
-        PlacementRequest offerRequest3 = new PlacementRequest("item1", "user1", 15, 10)
-
-        when:
-        market.placeOffer(offerRequest1)
-        Thread.sleep(500)
-        market.placeOffer(offerRequest2)
-        Thread.sleep(500)
-        market.placeOffer(offerRequest3)
-
-        then:
-        def offers = market.getOffersForUser(offerRequest1.userId)
-        assertThat(offers.size(), equalTo(3))
-        def offer1 = offers.find { offerRequest1.equals(it.placementRequest) }
-        def offer2 = offers.find { offerRequest2.equals(it.placementRequest) }
-        def offer3 = offers.find { offerRequest3.equals(it.placementRequest) }
-
-        assert(offer1.placementTime.isBefore(offer2.placementTime))
-        assert(offer2.placementTime.isBefore(offer3.placementTime))
-    }
 
 
     def "market should return all bids for a user"() {
         given:
-        Market market = new Market(new MarketState())
+        Market market = new Market()
 
         def userId = "user1"
         PlacementRequest bidRequest1 = new PlacementRequest("item1", userId, 5, 10)
@@ -236,7 +185,7 @@ class MarketSpec extends spock.lang.Specification {
         market.placeBid(bidRequest2)
 
         then:
-        def bids = market.getBidsForUser(userId).collect { it.placementRequest }
+        def bids = market.getBidsForUser(userId).collect { it.originalRequest }
         assertThat(bids.size(), equalTo(2))
         assertThat(bids, hasItem(bidRequest1))
         assertThat(bids, hasItem(bidRequest2))
@@ -244,7 +193,7 @@ class MarketSpec extends spock.lang.Specification {
 
     def "market should return all offers for a user"() {
         given:
-        Market market = new Market(new MarketState())
+        Market market = new Market()
 
         def userId = "user1"
         PlacementRequest offerRequest1 = new PlacementRequest("item1", userId, 5, 10)
@@ -255,7 +204,7 @@ class MarketSpec extends spock.lang.Specification {
         market.placeOffer(offerRequest2)
 
         then:
-        def offers = market.getOffersForUser(userId).collect { it.placementRequest }
+        def offers = market.getOffersForUser(userId).collect { it.originalRequest }
         assertThat(offers.size(), equalTo(2))
         assertThat(offers, hasItem(offerRequest1))
         assertThat(offers, hasItem(offerRequest2))
@@ -264,7 +213,7 @@ class MarketSpec extends spock.lang.Specification {
 
     def "market should return the current bid price for an item as the highest price of all bids for that item"() {
         given:
-        Market market = new Market(new MarketState())
+        Market market = new Market()
 
         def itemId = "item1"
         market.placeBid(new PlacementRequest(itemId, "user1", 10, 200))
@@ -279,7 +228,7 @@ class MarketSpec extends spock.lang.Specification {
 
     def "market should return the current bid price for an item as zero if there are no bids for that item"() {
         given:
-        Market market = new Market(new MarketState())
+        Market market = new Market()
 
         when:
         def currentBidPrice = market.getCurrentBidPrice("nonexistentid")
@@ -290,7 +239,7 @@ class MarketSpec extends spock.lang.Specification {
 
     def "market should return the current offer price for an item as the lowest price of all offers for that item"() {
         given:
-        Market market = new Market(new MarketState())
+        Market market = new Market()
 
         def itemId = "item1"
         market.placeOffer(new PlacementRequest(itemId, "user1", 10, 200))
@@ -305,7 +254,7 @@ class MarketSpec extends spock.lang.Specification {
 
     def "market should return the current offer price for an item as zero if there are no offers for that item"() {
         given:
-        Market market = new Market(new MarketState())
+        Market market = new Market()
 
         when:
         def currentOfferPrice = market.getCurrentOfferPrice("nonexistentid")
@@ -314,5 +263,232 @@ class MarketSpec extends spock.lang.Specification {
         assertThat(currentOfferPrice, equalTo(0))
     }
 
+    def "no purchase orders should be returned for a user who has placed no bids"() {
+        given:
+        Market market = new Market()
 
+        when:
+        def purchaseOrders = market.getPurchaseOrdersForUser("user1")
+
+        then:
+        assertThat(purchaseOrders.size(), equalTo(0))
+    }
+
+    def "no sale orders should be returned for a user who has placed no offers"() {
+        given:
+        Market market = new Market()
+
+        when:
+        def saleOrders = market.getSaleOrdersForUser("user1")
+
+        then:
+        assertThat(saleOrders.size(), equalTo(0))
+    }
+
+
+    def "no purchase orders should be returned for a user who has placed a bid but there is no matching offer"() {
+        given:
+        Market market = new Market()
+        market.placeBid(new PlacementRequest("item1", "user1", 10, 200))
+
+        when:
+        def purchaseOrders = market.getPurchaseOrdersForUser("user1")
+
+        then:
+        assertThat(purchaseOrders.size(), equalTo(0))
+    }
+
+    def "no sale orders should be returned for a user who has placed an offer but there is no matching bid"() {
+        given:
+        Market market = new Market()
+        market.placeOffer(new PlacementRequest("item1", "user1", 10, 200))
+
+        when:
+        def saleOrders = market.getSaleOrdersForUser("user1")
+
+        then:
+        assertThat(saleOrders.size(), equalTo(0))
+    }
+
+    def "a purchase order should be returned for a user who has placed a bid for which there is an exact matching offer"() {
+        given:
+        Market market = new Market()
+
+        def bidRequest = new PlacementRequest("item1", "user1", 10, 200)
+        market.placeBid(bidRequest)
+
+        def offerRequest = new PlacementRequest("item1", "user2", 10, 200)
+        market.placeOffer(offerRequest)
+
+        when:
+        def purchaseOrders = market.getPurchaseOrdersForUser("user1")
+
+        then:
+        assertThat(purchaseOrders.size(), equalTo(1))
+        def order = purchaseOrders[0]
+        checkOrderAgainstMatchedBidAndOffer(order, bidRequest, offerRequest)
+
+    }
+
+    def "no purchase order should be returned for a user who has placed a bid for which there is an offer at a higher price"() {
+        given:
+        Market market = new Market()
+
+        market.placeBid(new PlacementRequest("item1", "user1", 10, 200))
+        market.placeOffer(new PlacementRequest("item1", "user2", 10, 300))
+
+        when:
+        def purchaseOrders = market.getPurchaseOrdersForUser("user1")
+
+        then:
+        assertThat(purchaseOrders.size(), equalTo(0))
+    }
+
+    def "a purchase order should be returned for a user who has placed a bid for which there is an offer at a lower price and the order price should be the offer price"() {
+        given:
+        Market market = new Market()
+
+        def bidRequest = new PlacementRequest("item1", "user1", 10, 200)
+        market.placeBid(bidRequest)
+
+        def offerRequest = new PlacementRequest("item1", "user2", 10, 100)
+        market.placeOffer(offerRequest)
+
+        when:
+        def purchaseOrders = market.getPurchaseOrdersForUser("user1")
+
+        then:
+        assertThat(purchaseOrders.size(), equalTo(1))
+        def order = purchaseOrders[0]
+
+        checkOrderAgainstMatchedBidAndOffer(order, bidRequest, offerRequest)
+    }
+
+    def "no purchase order should be returned for a user who has placed a bid for which there is an offer with a lower quantity"() {
+        given:
+        Market market = new Market()
+
+        market.placeBid(new PlacementRequest("item1", "user1", 10, 200))
+        market.placeOffer(new PlacementRequest("item1", "user2", 5, 200))
+
+        when:
+        def purchaseOrders = market.getPurchaseOrdersForUser("user1")
+
+        then:
+        assertThat(purchaseOrders.size(), equalTo(0))
+    }
+
+    def "a purchase order should be returned for a user who has placed a bid for which there is an offer with a higher quantity"() {
+        given:
+        Market market = new Market()
+
+        def bidRequest = new PlacementRequest("item1", "user1", 10, 200)
+        market.placeBid(bidRequest)
+
+        def offerRequest = new PlacementRequest("item1", "user2", 15, 200)
+        market.placeOffer(offerRequest)
+
+        when:
+        def purchaseOrders = market.getPurchaseOrdersForUser("user1")
+
+        then:
+        assertThat(purchaseOrders.size(), equalTo(1))
+        def order = purchaseOrders[0]
+
+        checkOrderAgainstMatchedBidAndOffer(order, bidRequest, offerRequest)
+    }
+
+    def "a bid should match against the first placed offer if it matches multiple offers"() {
+        given:
+        Market market = new Market()
+
+        def offerRequest1 = new PlacementRequest("item1", "user2", 10, 200)
+        market.placeOffer(offerRequest1)
+
+        def offerRequest2 = new PlacementRequest("item1", "user3", 10, 100)
+        market.placeOffer(offerRequest2)
+
+        def bidRequest = new PlacementRequest("item1", "user1", 10, 300)
+        market.placeBid(bidRequest)
+
+        when:
+        def purchaseOrders = market.getPurchaseOrdersForUser("user1")
+
+        then:
+        assertThat(purchaseOrders.size(), equalTo(1))
+        def order = purchaseOrders[0]
+
+        checkOrderAgainstMatchedBidAndOffer(order, bidRequest, offerRequest1)
+    }
+
+    def "when an order is created the bid should be removed from the market"() {
+        given:
+        Market market = new Market()
+
+        def bidRequest = new PlacementRequest("item1", "user1", 10, 200)
+        market.placeBid(bidRequest)
+
+        def offerRequest = new PlacementRequest("item1", "user2", 10, 200)
+        market.placeOffer(offerRequest)
+
+        when:
+        def purchaseOrders = market.getPurchaseOrdersForUser("user1")
+
+        then:
+        assertThat(purchaseOrders.size(), equalTo(1))
+        def order = purchaseOrders[0]
+        checkOrderAgainstMatchedBidAndOffer(order, bidRequest, offerRequest)
+        assertThat(market.getBidsForUser("user1").size(), equalTo(0))
+    }
+
+    def "when an order is created the matching offer should have its quantity reduced by the quantity specified in the bid"() {
+        given:
+        Market market = new Market()
+
+        def bidRequest = new PlacementRequest("item1", "user1", 10, 200)
+        market.placeBid(bidRequest)
+
+        def offerRequest = new PlacementRequest("item1", "user2", 15, 200)
+        market.placeOffer(offerRequest)
+
+        when:
+        def purchaseOrders = market.getPurchaseOrdersForUser("user1")
+
+        then:
+        assertThat(purchaseOrders.size(), equalTo(1))
+        def order = purchaseOrders[0]
+        checkOrderAgainstMatchedBidAndOffer(order, bidRequest, offerRequest)
+        def offers = market.getOffersForUser("user2")
+        assertThat(offers.size(), equalTo(1))
+        assertThat(offers[0].originalRequest.quantity, equalTo(5))
+    }
+
+    def "when an order is created the matching offer should have be removed from the market if the bid quantity is equal to the offer quantity"() {
+        given:
+        Market market = new Market()
+
+        def bidRequest = new PlacementRequest("item1", "user1", 15, 200)
+        market.placeBid(bidRequest)
+
+        def offerRequest = new PlacementRequest("item1", "user2", 15, 200)
+        market.placeOffer(offerRequest)
+
+        when:
+        def purchaseOrders = market.getPurchaseOrdersForUser("user1")
+
+        then:
+        assertThat(purchaseOrders.size(), equalTo(1))
+        def order = purchaseOrders[0]
+        checkOrderAgainstMatchedBidAndOffer(order, bidRequest, offerRequest)
+        def offers = market.getOffersForUser("user2")
+        assertThat(offers.size(), equalTo(0))
+    }
+
+    private static void checkOrderAgainstMatchedBidAndOffer(order, bid, offer) {
+        assertThat(order.itemId, equalTo(bid.itemId))
+        assertThat(order.buyerId, equalTo(bid.userId))
+        assertThat(order.sellerId, equalTo(offer.userId))
+        assertThat(order.quantity, equalTo(bid.quantity))
+        assertThat(order.pricePerUnit, equalTo(offer.pricePerUnit))
+    }
 }

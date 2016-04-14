@@ -6,13 +6,13 @@ public class PlacementRequest {
     private final String itemId;
     private final String userId;
     private final int quantity;
-    private final int price;
+    private final int pricePerUnit;
 
-    public PlacementRequest(String itemId, String userId, int quantity, int price) {
+    public PlacementRequest(String itemId, String userId, int quantity, int pricePerUnit) {
         this.itemId = itemId;
         this.userId = userId;
         this.quantity = quantity;
-        this.price = price;
+        this.pricePerUnit = pricePerUnit;
     }
 
     public String getItemId() {
@@ -27,8 +27,8 @@ public class PlacementRequest {
         return quantity;
     }
 
-    public int getPrice() {
-        return price;
+    public int getPricePerUnit() {
+        return pricePerUnit;
     }
 
     @Override
@@ -39,7 +39,7 @@ public class PlacementRequest {
         PlacementRequest that = (PlacementRequest) o;
 
         if (quantity != that.quantity) return false;
-        if (price != that.price) return false;
+        if (pricePerUnit != that.pricePerUnit) return false;
         if (itemId != null ? !itemId.equals(that.itemId) : that.itemId != null) return false;
         return userId != null ? userId.equals(that.userId) : that.userId == null;
 
@@ -50,7 +50,7 @@ public class PlacementRequest {
         int result = itemId != null ? itemId.hashCode() : 0;
         result = 31 * result + (userId != null ? userId.hashCode() : 0);
         result = 31 * result + quantity;
-        result = 31 * result + price;
+        result = 31 * result + pricePerUnit;
         return result;
     }
 }
