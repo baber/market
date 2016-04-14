@@ -3,28 +3,28 @@ package com.cs.equities.marketplace.data;
 import java.time.Instant;
 import java.util.UUID;
 
-public class PlacedRequest implements  Comparable<PlacedRequest>{
+public class AcceptedSubmission implements  Comparable<AcceptedSubmission>{
 
-    private PlacementRequest originalRequest;
+    private Submission submission;
     private final Instant placementTime;
     private final String id;
 
-    public PlacedRequest(PlacementRequest originalRequest) {
-        this.originalRequest = originalRequest;
+    public AcceptedSubmission(Submission submission) {
+        this.submission = submission;
         this.placementTime = Instant.now();
         this.id = UUID.randomUUID().toString();
     }
 
     @Override
-    public int compareTo(PlacedRequest o) {
+    public int compareTo(AcceptedSubmission o) {
         return this.placementTime.compareTo(o.placementTime);
     }
 
-    public PlacementRequest getOriginalRequest() {
-        return originalRequest;
+    public Submission getSubmission() {
+        return submission;
     }
 
-    public void setOriginalRequest(PlacementRequest request) { this.originalRequest = request; }
+    public void setSubmission(Submission request) { this.submission = request; }
 
     public Instant getPlacementTime() {
         return placementTime;

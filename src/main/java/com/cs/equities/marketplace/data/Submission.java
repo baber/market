@@ -1,6 +1,6 @@
 package com.cs.equities.marketplace.data;
 
-public class PlacementRequest {
+public class Submission {
 
 
     private final String itemId;
@@ -8,7 +8,7 @@ public class PlacementRequest {
     private final int quantity;
     private final int pricePerUnit;
 
-    public PlacementRequest(String itemId, String userId, int quantity, int pricePerUnit) {
+    public Submission(String itemId, String userId, int quantity, int pricePerUnit) {
         this.itemId = itemId;
         this.userId = userId;
         this.quantity = quantity;
@@ -36,7 +36,7 @@ public class PlacementRequest {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
 
-        PlacementRequest that = (PlacementRequest) o;
+        Submission that = (Submission) o;
 
         if (quantity != that.quantity) return false;
         if (pricePerUnit != that.pricePerUnit) return false;

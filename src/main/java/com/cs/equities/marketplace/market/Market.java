@@ -1,8 +1,8 @@
 package com.cs.equities.marketplace.market;
 
 import com.cs.equities.marketplace.data.Order;
-import com.cs.equities.marketplace.data.PlacedRequest;
-import com.cs.equities.marketplace.data.PlacementRequest;
+import com.cs.equities.marketplace.data.AcceptedSubmission;
+import com.cs.equities.marketplace.data.Submission;
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.List;
@@ -14,24 +14,24 @@ public class Market {
     private final MarketState marketState = new MarketState();
 
 
-    public void placeBid(PlacementRequest request) throws IllegalArgumentException {
+    public synchronized void placeBid(Submission request) throws IllegalArgumentException {
         this.validatePlacementRequest(request);
-        PlacedRequest bid = this.marketState.addBid(request);
+        AcceptedSubmission bid = this.marketState.addBid(request);
         this.processBid(bid);
     }
 
-    public void placeOffer(PlacementRequest request) {
+    public synchronized void placeOffer(Submission request) {
         this.validatePlacementRequest(request);
-        PlacedRequest offer = this.marketState.addOffer(request);
+        AcceptedSubmission offer = this.marketState.addOffer(request);
         this.processOffer(offer);
     }
 
-    public List<PlacedRequest> getBidsForUser(String userId) {
+    public List<AcceptedSubmission> getBidsForUser(String userId) {
         return marketState.getBidsForUser(userId);
     }
 
 
-    public List<PlacedRequest> getOffersForUser(String userId) {
+    public List<AcceptedSubmission> getOffersForUser(String userId) {
         return marketState.getOffersForUser(userId);
     }
 
@@ -44,27 +44,16 @@ public class Market {
     }
 
     public int getCurrentBidPrice(String itemId) {
-        final List<PlacedRequest> bidsForItem = this.marketState.getBidsForItem(itemId);
-        if (bidsForItem == null) {
-            return 0;
-        }
-
-        OptionalInt maybeItem = bidsForItem.stream().mapToInt(x -> x.getOriginalRequest().getPricePerUnit()).max();
+        OptionalInt maybeItem = this.marketState.getBidsForItem(itemId).stream().mapToInt(x -> x.getSubmission().getPricePerUnit()).max();
         return maybeItem.isPresent() ? maybeItem.getAsInt() : 0;
     }
 
     public int getCurrentOfferPrice(String itemId) {
-        final List<PlacedRequest> offersForItem = this.marketState.getOffersForItem(itemId);
-        if (offersForItem == null) {
-            return 0;
-        }
-
-        OptionalInt maybeItem = offersForItem.stream().mapToInt(x -> x.getOriginalRequest().getPricePerUnit()).min();
+        OptionalInt maybeItem = this.marketState.getOffersForItem(itemId).stream().mapToInt(x -> x.getSubmission().getPricePerUnit()).min();
         return maybeItem.isPresent() ? maybeItem.getAsInt() : 0;
-
     }
 
-    private void validatePlacementRequest(PlacementRequest request) throws IllegalArgumentException {
+    private void validatePlacementRequest(Submission request) throws IllegalArgumentException {
         if (StringUtils.isEmpty(request.getItemId())) {
             throw new IllegalArgumentException("Placement request must have an item id!");
         }
@@ -79,55 +68,47 @@ public class Market {
         }
     }
 
-    private void processBid(PlacedRequest bid) {
-        List<PlacedRequest> offers = this.marketState.getOffersForItem(bid.getOriginalRequest().getItemId());
-        if (offers.size() == 0) {
-            return;
-        }
-
-        Optional<PlacedRequest> maybeMatchingOffer = offers.stream().filter(
-                x -> x.getOriginalRequest().getQuantity() >= bid.getOriginalRequest().getQuantity()
-                        && x.getOriginalRequest().getPricePerUnit() <= bid.getOriginalRequest().getPricePerUnit()).findFirst();
+    private void processBid(AcceptedSubmission bid) {
+        List<AcceptedSubmission> offers = this.marketState.getOffersForItem(bid.getSubmission().getItemId());
+        Optional<AcceptedSubmission> maybeMatchingOffer = offers.stream().filter(
+                x -> x.getSubmission().getQuantity() >= bid.getSubmission().getQuantity()
+                        && x.getSubmission().getPricePerUnit() <= bid.getSubmission().getPricePerUnit()).findFirst();
 
         if (maybeMatchingOffer.isPresent()) {
-            PlacedRequest matchingOffer = maybeMatchingOffer.get();
+            AcceptedSubmission matchingOffer = maybeMatchingOffer.get();
             this.processMatchingBidAndOffer(bid, matchingOffer);
         }
 
     }
 
-    private void processOffer(PlacedRequest offer) {
-        List<PlacedRequest> bids = this.marketState.getBidsForItem(offer.getOriginalRequest().getItemId());
-        if (bids.size() == 0) {
-            return;
-        }
-
-        Optional<PlacedRequest> maybeMatchingBid = bids.stream().filter(
-                x -> x.getOriginalRequest().getQuantity() <= offer.getOriginalRequest().getQuantity()
-                        && x.getOriginalRequest().getPricePerUnit() >= offer.getOriginalRequest().getPricePerUnit()).findFirst();
+    private void processOffer(AcceptedSubmission offer) {
+        List<AcceptedSubmission> bids = this.marketState.getBidsForItem(offer.getSubmission().getItemId());
+        Optional<AcceptedSubmission> maybeMatchingBid = bids.stream().filter(
+                x -> x.getSubmission().getQuantity() <= offer.getSubmission().getQuantity()
+                        && x.getSubmission().getPricePerUnit() >= offer.getSubmission().getPricePerUnit()).findFirst();
 
         if (maybeMatchingBid.isPresent()) {
-            PlacedRequest matchingBid = maybeMatchingBid.get();
+            AcceptedSubmission matchingBid = maybeMatchingBid.get();
             this.processMatchingBidAndOffer(matchingBid, offer);
         }
 
     }
 
-    private void processMatchingBidAndOffer(PlacedRequest bid, PlacedRequest offer) {
-        Order order = this.createOrder(bid.getOriginalRequest(), offer.getOriginalRequest());
+    private void processMatchingBidAndOffer(AcceptedSubmission bid, AcceptedSubmission offer) {
+        Order order = this.createOrder(bid.getSubmission(), offer.getSubmission());
         this.marketState.addOrder(order);
 
         this.marketState.removeBid(bid);
-        if (offer.getOriginalRequest().getQuantity() == bid.getOriginalRequest().getQuantity()) {
+        if (offer.getSubmission().getQuantity() == bid.getSubmission().getQuantity()) {
             this.marketState.removeOffer(offer);
         } else {
-            PlacementRequest originalOffer = offer.getOriginalRequest();
-            int remainingQuantity = originalOffer.getQuantity() - bid.getOriginalRequest().getQuantity();
-            offer.setOriginalRequest(new PlacementRequest(originalOffer.getItemId(), originalOffer.getUserId(), remainingQuantity, originalOffer.getPricePerUnit()));
+            Submission originalOffer = offer.getSubmission();
+            int remainingQuantity = originalOffer.getQuantity() - bid.getSubmission().getQuantity();
+            offer.setSubmission(new Submission(originalOffer.getItemId(), originalOffer.getUserId(), remainingQuantity, originalOffer.getPricePerUnit()));
         }
     }
 
-    private Order createOrder(PlacementRequest bid, PlacementRequest offer) {
+    private Order createOrder(Submission bid, Submission offer) {
         return new Order(bid.getUserId(), offer.getUserId(), bid.getItemId(), bid.getQuantity(), offer.getPricePerUnit());
     }
 
